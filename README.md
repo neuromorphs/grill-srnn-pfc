@@ -6,14 +6,30 @@ Additionally, the model is constrained in various ways to better emulate real ne
 
 ## Introduction
 
-Some of the contributors to this project are interested in building invasive brain computer interfaces (iBCIs) that are robust to non-stationarity in neuron-sampling space across sessions and robust to non-relevant stimulus processing of naturalistic stimuli.
-To build and test decoders with these properties of robustness, it is essential to have a model that can generate realistic neural data. In this project we aim to make such a model.
+This project is born out of the [Telluride 2020 Neuromorphic Engineering Workshop](https://sites.google.com/view/telluride2020/home). Some of the contributors to this project are interested in building invasive brain computer interfaces (iBCIs) that are robust to non-stationarity in neuron-sampling space across sessions and robust to non-relevant stimulus processing of naturalistic stimuli. To build and test decoders with these properties of robustness, it is essential to have a model that can generate realistic neural data. In this project we aim to make such a model.
 
 This work is inspired by the work of Kim, Li & Sejnowski<sup id="a-KS-2019">[ 4, ](#f-KS-2019)</sup><sup id="a-KS-2020">[5](#f-KS-2020)</sup> which also models this same task and is evaluated against these same data.
 
 ## Getting Started
 
+The `notebooks` folder contains Jupyter notebooks to do different parts of the model building and analysis. Most of these notebooks should be able to run on Google Colab. Just click on the appropriate link in the table in `notebooks/README.md`.
+
+However, many of us want to work locally, especially as we are developing and testing, so we use the below instructions to setup our development environment. 
+
 ### Python Environment
+
+* Install [miniconda](https://docs.conda.io/en/latest/miniconda.html). After miniconda is installed, open a new Terminal or "Anaconda Prompt".
+* Create a new conda environment: `conda create -n srnn_pfc python=3.7 --yes`
+* Activate the environment: `conda activate srnn_pfc` (sometimes `source activate srnn_pfc` on Linux/Mac)
+* Install the dependencies:
+    * `conda install numpy scipy jupyter matplotlib --yes`  # Note: we may eventually add more packages to this list.
+    * `pip install --upgrade nengo nengo-gui nbdev`  # Note: we may eventually add more packages to this list.
+* Activate nengo jupyter extension: `jupyter serverextension enable nengo_gui.jupyter`
+* Clone this repository: `git clone https://github.com/neuromorphs/grill-srnn-pfc.git && cd grill-srnn-pfc`
+* Install this repository's python package in-place: `pip install -e .`
+* Change to the `notebooks` folder and launch the server: `cd notebooks` `jupyter notebook`
+
+There are more instructions in the notebooks README.md
 
 ### Data
 
@@ -24,7 +40,6 @@ This work is inspired by the work of Kim, Li & Sejnowski<sup id="a-KS-2019">[ 4,
 ### Constraints
 
 ### Evaluating the Model
-
 
 ## Footnotes and references
 
