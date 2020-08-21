@@ -3,7 +3,9 @@
 | Notebook                    | Colab Link |
 |-----------------------------| -----------|
 | 00_nengo_test               | [Link](https://colab.research.google.com/github/neuromorphs/grill-srnn-pfc/blob/master/notebooks/00_nengo_test.ipynb)|
-| 01_simplest_srnn            | [Link](https://colab.research.google.com/github/neuromorphs/grill-srnn-pfc/blob/master/notebooks/01_simplest_rnn.ipynb)|
+| 01_srnn_go_nogo             | [Link](https://colab.research.google.com/github/neuromorphs/grill-srnn-pfc/blob/master/notebooks/01_srnn_go_nogo.ipynb)|
+| 02_srnn_ctx_integrator      | [Link](https://colab.research.google.com/github/neuromorphs/grill-srnn-pfc/blob/master/notebooks/02_srnn_ctx_integrator.ipynb)|
+| 03_simplest_srnn_dms        | [Link](https://colab.research.google.com/github/neuromorphs/grill-srnn-pfc/blob/master/notebooks/03_simplest_rnn_dms.ipynb)|
 
 ## Usage Hints
 
