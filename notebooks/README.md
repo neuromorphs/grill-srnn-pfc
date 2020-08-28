@@ -38,4 +38,5 @@ For these libraries to be useful immediately after calling `nbdev_build_lib`, th
 
 ### Running the NNI tests
 
-`nnictl create --config srnn_pfc\tune\config.yml`
+From outside the grill-srnn-pfc directory, so as not to confuse python's import statements:
+> `nnictl create --config grill-srnn-pfc\srnn_pfc\tune\lmu_dms_nni_cfg.yml`

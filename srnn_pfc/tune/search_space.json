@@ -1,11 +1,41 @@
 {
-  "theta": {"_type":"uniform", "_value":[6.0, 6.0]},
-  "q": {"_type":"choice", "_value":[6]},
-  "n_neurons": {"_type":"uniform", "_value":[500, 5000]},
-  "ens_seed": {"_type":"choice", "_value":[1337]},
-  "train_trials_per_cond": {"_type":"choice", "_value":[5]},
-  "test_trials_per_cond": {"_type":"choice", "_value":[5]},
-  "train_trials_seed": {"_type":"choice", "_value":[1337]},
-  "test_trials_seed": {"_type":"choice", "_value":[1234]},
-  "tau": {"_type":"uniform", "_value":[0.05, 0.5]}
+  "theta": {
+    "_type": "quniform",
+    "_value": [
+      6.0,
+      6.0,
+      1.0
+    ]
+  },
+  "q": {
+    "_type": "quniform",
+    "_value": [
+      6,
+      6,
+      1
+    ]
+  },
+  "n_neurons": {
+    "_type": "choice",
+    "_value": [
+      10,
+      25,
+      50,
+      100,
+      150,
+      200,
+      250,
+      500,
+      1000,
+      2000
+    ]
+  },
+  "tau": {
+    "_type": "quniform",
+    "_value": [
+      0.05,
+      0.6,
+      0.1
+    ]
+  }
 }
