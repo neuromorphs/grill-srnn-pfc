@@ -22,8 +22,9 @@ However, many of us want to work locally, especially as we are developing and te
 * Create a new conda environment: `conda create -n srnn_pfc python=3.7 --yes`
 * Activate the environment: `conda activate srnn_pfc` (sometimes `source activate srnn_pfc` on Linux/Mac)
 * Install the dependencies:
-    * `conda install numpy scipy jupyter matplotlib --yes`  # Note: we may eventually add more packages to this list.
-    * `pip install --upgrade nengo nengo-gui nbdev nni`  # Note: we may eventually add more packages to this list.
+    * `conda install numpy scipy jupyter matplotlib pandas --yes`  # Note: we may eventually add more packages to this list.
+    * `pip install --upgrade nengo nengo-gui nbdev nni xlrd quantities neo elephant nengo-bio pingouin`  # Note: we may eventually add more packages to this list.
+        * nengo-bio only works on Linux currently
 * Activate nengo jupyter extension: `jupyter serverextension enable nengo_gui.jupyter`
 * Clone this repository: `git clone https://github.com/neuromorphs/grill-srnn-pfc.git && cd grill-srnn-pfc`
 * Install this repository's python package in-place: `pip install -e .`

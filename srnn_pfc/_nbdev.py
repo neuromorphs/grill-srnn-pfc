@@ -7,6 +7,7 @@ index = {"DMSTask": "03_simplest_srnn_dms.ipynb",
          "LDN": "04_lmu_dms.ipynb",
          "make_ldn_B_A": "04_lmu_dms.ipynb",
          "make_lmu_dms": "04_lmu_dms.ipynb",
+         "max_rates_pdf": "04_lmu_dms.ipynb",
          "logger": "05_lmu_dms_tuning.ipynb",
          "generate_default_params": "05_lmu_dms_tuning.ipynb",
          "run_trial": "05_lmu_dms_tuning.ipynb"}

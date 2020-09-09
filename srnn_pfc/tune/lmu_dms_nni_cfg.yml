@@ -1,8 +1,8 @@
 authorName: default
 experimentName: lmu_dms
 logLevel: debug
-maxExecDuration: 10h
-maxTrialNum: 100
+maxExecDuration: 18h
+maxTrialNum: 1000
 searchSpacePath: search_space.json
 trainingServicePlatform: local
 trial:
