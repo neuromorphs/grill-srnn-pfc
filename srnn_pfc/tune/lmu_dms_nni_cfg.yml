@@ -1,7 +1,7 @@
 authorName: default
 experimentName: lmu_dms
 logLevel: debug
-maxExecDuration: 18h
+maxExecDuration: 10h
 maxTrialNum: 1000
 searchSpacePath: search_space.json
 trainingServicePlatform: local
@@ -9,7 +9,7 @@ trial:
   codeDir: .
   command: python -m srnn_pfc.tune.lmu_dms
   gpuNum: 0
-trialConcurrency: 2
+trialConcurrency: 1
 tuner:
   builtinTunerName: GridSearch
 useAnnotation: false

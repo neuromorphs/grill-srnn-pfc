@@ -6,6 +6,7 @@ __all__ = ['LDN', 'make_ldn_B_A', 'make_lmu_dms', 'max_rates_pdf']
 import numpy as np
 import nengo
 import scipy.linalg
+import nengo_ocl
 
 
 class LDN(nengo.Process):
@@ -54,6 +55,7 @@ def make_ldn_B_A(theta=6.0, q=6, size_in=2):
 
 
 # Cell
+from functools import partial
 from .dms import DMSTask
 import nengo_bio as bio
 import nengo.dists
@@ -91,17 +93,16 @@ def make_lmu_dms(theta=6.0, q=6, n_neurons=2000, seed=1337,
                  size_in=2,
                  dales_law=False,
                  max_rates='default',
-                 hetero_tau=False
+                 hetero_tau=False,
+                 ssp_dim=0,
+                 ssp_scale=1
                 ):
     """
     Make a LMU network that performs the delayed match to sample task.
     returns the model and a dictionary of the probes.
-
+    max_rates: one of ['default', 'uniform_low', 'data']
     hetero_tau: https://arvoelke.github.io/nengolib-docs/notebooks/examples/hetero_synapse.html
     """
-    ldn, B_full, A_full = make_ldn_B_A(theta=theta, q=q, size_in=size_in)
-    dms = DMSTask(gen_trials_per_cond=n_trials_per_cond, cond_seed=trial_seed)
-
     if max_rates in ['default']:
         max_rates = nengo.dists.Uniform(200, 400)
     if max_rates in ['uniform_low']:
@@ -109,18 +110,35 @@ def make_lmu_dms(theta=6.0, q=6, n_neurons=2000, seed=1337,
     elif max_rates in ['data']:
         max_rates = max_rates_pdf
 
-    ens_kwargs = {'n_neurons': n_neurons, 'dimensions': ldn.q*size_in, 'seed': seed}
+    ens_kwargs = {'n_neurons': n_neurons, 'seed': seed}
     if dales_law:
         Ensemble = bio.Ensemble
         ens_kwargs['p_exc'] = 0.8
     else:
         Ensemble = nengo.Ensemble
 
+    ldn, B_full, A_full = make_ldn_B_A(theta=theta, q=q, size_in=max(ssp_dim, size_in))
+    dms = DMSTask(gen_trials_per_cond=n_trials_per_cond, cond_seed=trial_seed)
+    ens_kwargs['dimensions'] = ldn.q * max(ssp_dim, size_in)
+
+    assert ssp_dim <= size_in, "ssp not yet supported"
+    if ssp_dim > size_in:
+        vocab = spa.Vocabulary(ssp_dim)
+        vocab.populate('X.unitary().nondegenerate()')
+        vocab.populate('Y.unitary().nondegenerate()')
+        X = vocab.parse('X')
+        Y = vocab.parse('Y')
+        def convert(x):
+            return (X**(x[0] * ssp_scale) + Y**(x[1] * ssp_scale)).v
+    else:
+        def convert(x):
+            return x
+
     # Dummy model to get weights for ensemble's identity decoder with correct dimensionality.
     # See https://github.com/neuromorphs/grill-lmu/blob/master/weights/Connection%20Weights%20in%20Nengo.ipynb
     with nengo.Network() as dummy_model:
         ens = Ensemble(max_rates=max_rates, **ens_kwargs)
-        output = nengo.Node(None, size_in=ldn.q*size_in)
+        output = nengo.Node(None, size_in=ldn.q*max(ssp_dim, size_in))
         c = nengo.Connection(ens, output)
     dummy_sim = nengo.Simulator(dummy_model)
 
@@ -135,6 +153,12 @@ def make_lmu_dms(theta=6.0, q=6, n_neurons=2000, seed=1337,
     # This is useful when we want to use a mixture of synaptic constants
     taus = nengo.dists.Uniform(0.01, 0.7).sample(n_neurons)
 
+    def stim_func_hetero_synapse(x, row_ix=0):
+        return E.dot(taus[row_ix] * B_full)[row_ix][None, :].dot(convert(x))
+
+    def recurr_func_hetero_synapse(x, row_ix=0):
+        return E.dot((taus[row_ix] * A_full + A_eye).dot(D))[row_ix, :][None, :].dot(convert(x))
+
     with nengo.Network() as model:
         # When creating the ensemble, set gain to 1 and bias to 0 because we will get them from
         # previous calculations
@@ -146,23 +170,35 @@ def make_lmu_dms(theta=6.0, q=6, n_neurons=2000, seed=1337,
 
         # Task-stimulus input
         stim = nengo.Node(dms.stim_signal)
+
         if not hetero_tau:
             stim_tf = E.dot(tau * B_full)
-            nengo.Connection(stim, ens.neurons, transform=stim_tf, synapse=tau)
+            nengo.Connection(stim, ens.neurons, synapse=tau,
+                             transform=stim_tf,
+                             # function=lambda x: stim_tf.dot(convert(x))
+                            )
         else:
             for ix, tau_i in enumerate(taus):
-                stim_tf = E.dot(tau_i * B_full)[ix, :][None, :]
-                nengo.Connection(stim, ens.neurons[ix], transform=stim_tf, synapse=tau_i)
+                nengo.Connection(stim, ens.neurons[ix], synapse=tau_i,
+                                 transform=E.dot(tau_i * B_full)[ix, :][None, :],
+                                 # function=partial(stim_func_hetero_synapse, row_ix=ix)
+                                 )
 
         # Recurrent connection
+        A_eye = np.eye(ldn.q * max(ssp_dim, size_in))
         if not hetero_tau:
-            W = E.dot((tau * A_full + np.eye(ldn.q * size_in)).dot(D))
-            nengo.Connection(ens.neurons, ens.neurons, transform=W, synapse=tau)
+            W = E.dot((tau * A_full + A_eye).dot(D))
+            nengo.Connection(ens.neurons, ens.neurons, synapse=tau,
+                             transform=W,
+                             #function=lambda x: W.dot(convert(x))
+                             )
             # bio.Connection(ens, ens, transform=W)
         else:
             for ix, tau_i in enumerate(taus):
-                W = E.dot((tau_i * A_full + np.eye(ldn.q * size_in)).dot(D))[ix, :][None, :]
-                nengo.Connection(ens.neurons, ens.neurons[ix], transform=W, synapse=tau_i)
+                nengo.Connection(ens.neurons, ens.neurons[ix], synapse=tau_i,
+                                 transform=E.dot((tau_i * A_full + A_eye).dot(D))[ix, :][None, :],
+                                 #function=partial(recurr_func_hetero_synapse, row_ix=ix)
+                                )
 
         output = nengo.Node(None, size_in=1)
         if out_transform is None:

@@ -18,12 +18,23 @@ However, many of us want to work locally, especially as we are developing and te
 
 ### Python Environment
 
+nengo-bio only works on Linux currently so that is the only platform supported when using Dale's Law.
+
 * Install [miniconda](https://docs.conda.io/en/latest/miniconda.html). After miniconda is installed, open a new Terminal or "Anaconda Prompt".
+* `conda config --append channels conda-forge`
 * Create a new conda environment: `conda create -n srnn_pfc python=3.7 --yes`
 * Activate the environment: `conda activate srnn_pfc` (sometimes `source activate srnn_pfc` on Linux/Mac)
-* Install the dependencies:
-    * `conda install numpy scipy jupyter matplotlib pandas --yes`  # Note: we may eventually add more packages to this list.
-    * `pip install --upgrade nengo nengo-gui nbdev nni xlrd quantities neo elephant nengo-bio pingouin`  # Note: we may eventually add more packages to this list.
+* Install the dependencies (this list may update frequently):
+    * I encountered segfaults when installing OpenCL to the conda env only, so install system OpenCL:
+        * On Linux if using nVidia opencl:
+            * Maybe enough to install CUDA
+            * Otherwise, `sudo apt-get install nvidia-opencl-common nvidia-libopencl1`
+        * On Linux if using intel opencl: [Instructions here](https://askubuntu.com/a/1134762). 
+        * On Windows, if using Intel: [Download and install Intel {X} Processor Runtimes](https://software.intel.com/content/www/us/en/develop/articles/opencl-drivers.html)
+        * On Windows, if using nVidia: I haven't tried this yet.
+    * All: `conda install numpy scipy jupyter matplotlib pandas pyopencl ocl-icd-system --yes`
+        * `ocl-icd-system` tells pyopencl to use the system ICD.
+    * `pip install --upgrade nengo nengo-gui nbdev nni xlrd quantities neo elephant nengo-bio pingouin nengo-ocl`
         * nengo-bio only works on Linux currently
 * Activate nengo jupyter extension: `jupyter serverextension enable nengo_gui.jupyter`
 * Clone this repository: `git clone https://github.com/neuromorphs/grill-srnn-pfc.git && cd grill-srnn-pfc`

@@ -5,21 +5,23 @@ __all__ = ['logger', 'generate_default_params', 'run_trial']
 # Cell
 import argparse
 import logging
+import pyopencl as cl
 from sklearn import metrics
 import numpy as np
 import nengo
+import nengo_ocl
 import nengo.utils.least_squares_solvers as lss
 import nni
-from ..lmu import make_lmu_dms  # LDN, make_ldn_B_A,
+from srnn_pfc.lmu import make_lmu_dms
 
 
 logger = logging.getLogger('lmu_dms_tuning')
 
 
-
 # Cell
 def generate_default_params():
-    return {"theta": 6.0, "q": 6, "n_neurons": 1000, "tau": 0.1}
+    return {"theta": 6.0, "q": 6, "n_neurons": 1000, "tau": 0.2,
+            "max_rates": "uniform_low", "dales_law": True, "hetero_tau": True}
 
 
 # Cell
@@ -28,29 +30,50 @@ def run_trial(params,
               train_trials_seed=1337,
               test_trials_seed=1234,
               train_trials_per_cond=5,
-              test_trials_per_cond=5):
+              test_trials_per_cond=5,
+              eval_strict=True,
+              cl_platform_vendor='none'):
+
+    cl_ctx = None
+    for plat in cl.get_platforms():
+        if plat.vendor.upper().startswith(cl_platform_vendor.upper()):
+            cl_ctx = cl.Context(dev_type=cl.device_type.ALL,
+                                properties=[(cl.context_properties.PLATFORM, plat)])
+            break
+    if cl_ctx is None:
+        cl_ctx = cl.create_some_context(interactive=False)
+
     # Create model for training
     srate = 1000
-    for key in ['q', 'n_neurons']:
-        params[key] = int(params[key])
-    train_model, train_probes = make_lmu_dms(
-                                    theta=params['theta'],
-                                    q=params['q'],
-                                    n_neurons=params['n_neurons'],
-                                    seed=ens_seed,
-                                    out_transform=None,
-                                    n_trials_per_cond=train_trials_per_cond,
-                                    trial_seed=train_trials_seed,
-                                    tau=params['tau'])
+    factory_kwargs = {
+        'q': int(params['q']),
+        'theta': params['theta'],
+        'tau': params['tau'],
+        'n_neurons': int(params['n_neurons']),
+        'max_rates': params['max_rates'],
+        'dales_law': params['dales_law'],
+        'hetero_tau': params['hetero_tau'],
+        'ssp_dim': 0
+    }
+
     # Generate training data
-    train_sim = nengo.Simulator(train_model)
+    train_model, train_probes = make_lmu_dms(
+        seed=ens_seed,
+        out_transform=None,
+        n_trials_per_cond=train_trials_per_cond,
+        trial_seed=train_trials_seed,
+        **factory_kwargs
+    )
     n_train_trials = train_trials_per_cond * 8 * 2  # 16 conditions
-    train_sim.run(6 * n_train_trials)  # 6 seconds per trial
-    train_sim.close()
+    with nengo_ocl.Simulator(train_model, context=cl_ctx) as train_sim:
+        train_sim.run(6 * n_train_trials)  # 6 seconds per trial
 
     # Solve for weights - Data are generally too large for nengo's filt so we slice
-    #  them to only evaluate specific ranges.
-    eval_ranges = [(0, 0.25), (0.75, 1.75), (2.75, 3.75), (4.75, 6.0)]
+    #  them to only evaluate specific ranges
+    if eval_strict:
+        eval_ranges = [(0, 0.25), (0.75, 1.75), (2.75, 3.75), (4.75, 6.0)]
+    else:
+        eval_ranges = [(1.0, 1.5), (5.0, 6.0)]
     trial_tvec = np.arange(0, 6.0, 1/srate)
     b_eval = np.zeros(trial_tvec.shape, dtype=bool)
     for t_win in eval_ranges:
@@ -67,14 +90,11 @@ def run_trial(params,
 
     # Create a new model with the learned weights
     test_model, test_probes = make_lmu_dms(
-                                  theta=params['theta'],
-                                  q=params['q'],
-                                  n_neurons=params['n_neurons'],
-                                  seed=ens_seed,
-                                  out_transform=D.T,
-                                  n_trials_per_cond=test_trials_per_cond,
-                                  trial_seed=test_trials_seed,
-                                  tau=params['tau'])
+        seed=ens_seed,
+        out_transform=D.T,
+        n_trials_per_cond=test_trials_per_cond,
+        trial_seed=test_trials_seed,
+        **factory_kwargs)
 
     # Run test simulation - break after N trials to report cumulative accuracy
     def get_labels_from_sim(sim, n_trials):
@@ -87,7 +107,7 @@ def run_trial(params,
         return label, score
 
     total_test_trials = test_trials_per_cond * 8 * 2
-    test_sim = nengo.Simulator(test_model)
+    test_sim = nengo_ocl.Simulator(test_model, context=cl_ctx)
 
     test_ix = min(20, total_test_trials)
     test_sim.run(6 * test_ix)
@@ -130,6 +150,12 @@ if __name__ == "__main__" and not IN_NOTEBOOK:
                         help="training trials per task condition", required=False)
     parser.add_argument("--test_trials_per_cond", type=int, default=5,
                         help="testing trials per task condition", required=False)
+    parser.add_argument("--eval_window_strict", type=bool, default=False,
+                        help="True: expect 0 output for all segs except response; False: expect 0 for Cue only.",
+                        required=False)
+    parser.add_argument("--cl_platform_vendor", type=str, default='NVIDIA',
+                        help="Use the first CL platform matching this vendor (case insensitive)",
+                        required=False)
     args, unknown = parser.parse_known_args()
 
     try:
@@ -140,7 +166,9 @@ if __name__ == "__main__" and not IN_NOTEBOOK:
                   train_trials_seed=args.train_trials_seed,
                   test_trials_seed=args.test_trials_seed,
                   train_trials_per_cond=args.train_trials_per_cond,
-                  test_trials_per_cond=args.test_trials_per_cond
+                  test_trials_per_cond=args.test_trials_per_cond,
+                  eval_strict=args.eval_window_strict,
+                  cl_platform_vendor=args.cl_platform_vendor
                  )
     except Exception as e:
         logger.exception(e)
