@@ -17,13 +17,15 @@ class LDN(nengo.Process):
 
         # Do Aaron's math to generate the matrices
         #  https://github.com/arvoelke/nengolib/blob/master/nengolib/synapses/analog.py#L536
-        Q = np.arange(q, dtype=np.float64)
-        R = (2*Q + 1)[:, None] / theta
-        j, i = np.meshgrid(Q, Q)
-
-        self.A = np.where(i < j, -1, (-1.)**(i-j+1)) * R
-        self.B = (-1.)**Q[:, None] * R
-
+        A = np.zeros((q, q))
+        B = np.zeros((q, 1))
+        for i in range(q):
+            B[i] = (-1.)**i * (2*i+1)
+            for j in range(q):
+                A[i,j] = (2*i+1)*(-1 if i<j else (-1.)**(i-j+1)) 
+        self.A = A / theta
+        self.B = B / theta
+        
         super().__init__(default_size_in=size_in, default_size_out=q*size_in)
 
     def make_step(self, shape_in, shape_out, dt, rng, state=None):
@@ -57,7 +59,7 @@ def make_ldn_B_A(theta=6.0, q=6, size_in=2):
 # Cell
 from functools import partial
 from .dms import DMSTask
-import nengo_bio as bio
+#import nengo_bio as bio
 import nengo.dists
 
 
